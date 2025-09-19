@@ -50,7 +50,7 @@ fn main() -> Result<()> {
         handle_term_size(&mut term_size)?;
         clear_scr()?;
         goto_begin()?;
-        write_todos_dones(&todos, &dones, term_size)?;
+        write_todos_dones(&todos, &dones, term_size, curr_tab)?;
 
         let mid_scr = term_size.0 / 2;
         match curr_tab {

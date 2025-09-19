@@ -1,10 +1,10 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Write, stdout};
+use std::io::{self, BufRead, Write};
 use std::path::Path;
 use std::time;
 
 use anyhow::Result;
-use crossterm::style::Print;
+use crossterm::style;
 use crossterm::terminal::{
     self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
     enable_raw_mode,
@@ -14,14 +14,15 @@ use crossterm::{cursor, event, execute, queue};
 use unicode_width::UnicodeWidthChar;
 
 use crate::globals;
+use crate::state::Tab;
 
 pub fn clear_scr() -> io::Result<()> {
-    execute!(stdout(), Clear(ClearType::All))?;
+    execute!(io::stdout(), Clear(ClearType::All))?;
     Ok(())
 }
 
 pub fn goto(x: u16, y: u16) -> io::Result<()> {
-    execute!(stdout(), cursor::MoveTo(x, y))?;
+    execute!(io::stdout(), cursor::MoveTo(x, y))?;
     Ok(())
 }
 
@@ -30,7 +31,7 @@ pub fn goto_begin() -> io::Result<()> {
 }
 
 pub fn init_scr() -> io::Result<()> {
-    execute!(stdout(), EnterAlternateScreen)?;
+    execute!(io::stdout(), EnterAlternateScreen)?;
     goto_begin()?;
     clear_scr()?;
     enable_raw_mode()?;
@@ -38,7 +39,7 @@ pub fn init_scr() -> io::Result<()> {
 }
 
 pub fn reset_scr() -> io::Result<()> {
-    execute!(stdout(), LeaveAlternateScreen)?;
+    execute!(io::stdout(), LeaveAlternateScreen)?;
     disable_raw_mode()?;
     Ok(())
 }
@@ -54,7 +55,7 @@ where
         return Ok(Default::default());
     };
 
-    let reader = BufReader::new(file);
+    let reader = io::BufReader::new(file);
     let mut todos = Vec::new();
     let mut dones = Vec::new();
 
@@ -87,14 +88,30 @@ pub fn write_todos_dones(
     todos: &[String],
     dones: &[String],
     term_size: (u16, u16),
+    curr_tab: Tab,
 ) -> io::Result<()> {
     let (cols, _) = term_size;
     let col_mid = cols / 2;
-    let mut handle = stdout().lock();
-    queue!(
-        handle,
-        Print(format!("TODO{}DONE\r\n", " ".repeat(col_mid as usize - 4)))
-    )?;
+    let mut handle = io::stdout().lock();
+    let is_tab_todo = matches!(curr_tab, Tab::Todos);
+
+    let proc = |s: &str, should_reverse: bool, handle: &mut io::StdoutLock<'_>| -> io::Result<()> {
+        if should_reverse {
+            queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
+        }
+
+        queue!(handle, style::Print(s))?;
+
+        if should_reverse {
+            queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
+        }
+
+        Ok(())
+    };
+
+    proc("TODO", is_tab_todo, &mut handle)?;
+    queue!(handle, style::Print(" ".repeat(col_mid as usize - 4)))?;
+    proc("DONE\r\n", !is_tab_todo, &mut handle)?;
 
     let mut proc = |strs: &[String], line_begin: &str, is_dones: bool| -> io::Result<()> {
         for (y, item) in strs.iter().enumerate() {
@@ -105,15 +122,15 @@ pub fn write_todos_dones(
             }
 
             if whole_str.trim().chars().count() < col_mid as usize {
-                queue!(handle, Print(whole_str))?;
+                queue!(handle, style::Print(whole_str))?;
                 continue;
             }
             let (half1, half2) =
                 split_to_fit(&whole_str, col_mid as usize - if is_dones { 0 } else { 1 });
-            queue!(handle, Print(half1.to_string() + "\r\n"))?;
+            queue!(handle, style::Print(half1.to_string() + "\r\n"))?;
             queue!(
                 handle,
-                Print(format!(
+                style::Print(format!(
                     "{space}{txt}",
                     space = " ".repeat(line_begin.chars().count() + 1),
                     txt = half2
