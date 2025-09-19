@@ -59,12 +59,13 @@ fn main() -> Result<()> {
         }
 
         if let Some(code) = get_key_event(Duration::from_millis(1000 / 60))? {
+            #[rustfmt::skip]
             let mut handler = StateHandler {
-                curr_tab: &mut curr_tab,
-                todos: &mut todos,
-                todos_idx: &mut todos_idx,
-                dones: &mut dones,
-                dones_idx: &mut dones_idx,
+                curr_tab:    &mut curr_tab,
+                todos:       &mut todos,
+                todos_idx:   &mut todos_idx,
+                dones:       &mut dones,
+                dones_idx:   &mut dones_idx,
                 insert_mode: &mut insert_mode,
             };
 
