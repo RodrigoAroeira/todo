@@ -1,0 +1,10 @@
+[package]
+name = "todo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.99"
+crossterm = "0.29.0"
+ctrlc = "3.5.0"
+unicode-width = "0.2.1"
