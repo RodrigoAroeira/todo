@@ -17,7 +17,6 @@ impl Tab {
     }
 }
 
-#[expect(dead_code)]
 #[rustfmt::skip]
 pub struct StateHandler<'a> {
     pub curr_tab:    &'a mut Tab,
@@ -54,10 +53,16 @@ impl StateHandler<'_> {
     fn handle_enter_press(&mut self) {
         match self.curr_tab {
             Tab::Todos => {
+                if self.todos.is_empty() {
+                    return;
+                }
                 let value = self.todos.remove(*self.todos_idx);
                 self.dones.push(value);
             }
             Tab::Dones => {
+                if self.dones.is_empty() {
+                    return;
+                }
                 let value = self.dones.remove(*self.dones_idx);
                 self.todos.push(value);
             }
