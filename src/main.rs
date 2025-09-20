@@ -1,6 +1,5 @@
 mod globals;
 mod helpers;
-mod macros;
 mod screen_guard;
 mod state;
 
