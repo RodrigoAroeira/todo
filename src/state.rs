@@ -40,6 +40,8 @@ impl StateHandler<'_> {
             KeyCode::Char('i') => self.start_insert_mode(),
             KeyCode::Char('j') => self.handle_cursor_move(KeyCode::Down),
             KeyCode::Char('k') => self.handle_cursor_move(KeyCode::Up),
+            KeyCode::Char('J') => self.handle_move_item(KeyCode::Down),
+            KeyCode::Char('K') => self.handle_move_item(KeyCode::Up),
             KeyCode::Char('d') => self.handle_delete(),
             KeyCode::Char('q') => anyhow::bail!(globals::BREAK),
             KeyCode::Char('Q') => anyhow::bail!(globals::NO_SAVE),
@@ -123,6 +125,38 @@ impl StateHandler<'_> {
             }
             _ => {}
         }
+    }
+
+    fn handle_move_item(&mut self, direction: KeyCode) {
+        let (vec, idx) = match self.curr_tab {
+            Tab::Todos => (&mut self.todos, &mut self.todos_idx),
+            Tab::Dones => (&mut self.dones, &mut self.dones_idx),
+        };
+
+        if vec.is_empty() {
+            return;
+        }
+
+        let idx_val = **idx; // dereference once for clarity
+
+        let new_idx = match direction {
+            KeyCode::Down => {
+                if idx_val == vec.len() - 1 {
+                    return;
+                }
+                idx_val + 1
+            }
+            KeyCode::Up => {
+                if idx_val == 0 {
+                    return;
+                }
+                idx_val - 1
+            }
+            _ => unreachable!(),
+        };
+
+        vec.swap(idx_val, new_idx);
+        **idx = new_idx;
     }
 
     fn clamp_indexes(&mut self) {
