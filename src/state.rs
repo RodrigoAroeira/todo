@@ -31,10 +31,14 @@ pub struct StateHandler<'a> {
 impl StateHandler<'_> {
     #[rustfmt::skip]
     pub fn execute_action(&mut self, code: KeyCode) -> anyhow::Result<()> {
+        if *self.insert_mode {
+            self.handle_insert_mode(code);
+            return Ok(())
+        }
         match code {
             KeyCode::Enter     => self.handle_enter_press(),
             KeyCode::Tab       => *self.curr_tab = self.curr_tab.toggle(),
-            KeyCode::Char('i') => todo!("Insert mode logic"),
+            KeyCode::Char('i') => self.start_insert_mode(),
             KeyCode::Char('j') => self.handle_cursor_move(KeyCode::Down),
             KeyCode::Char('k') => self.handle_cursor_move(KeyCode::Up),
             KeyCode::Char('d') => self.handle_delete(),
@@ -83,6 +87,37 @@ impl StateHandler<'_> {
         }
 
         target_vec.remove(**idx);
+    }
+
+    fn start_insert_mode(&mut self) {
+        *self.insert_mode = true;
+        match self.curr_tab {
+            Tab::Todos => self.todos.insert(*self.todos_idx, String::new()),
+            Tab::Dones => self.dones.insert(*self.dones_idx, String::new()),
+        }
+    }
+
+    fn handle_insert_mode(&mut self, code: KeyCode) {
+        let buf = match self.curr_tab {
+            Tab::Todos => &mut self.todos.get_mut(*self.todos_idx).unwrap(),
+            Tab::Dones => &mut self.dones.get_mut(*self.dones_idx).unwrap(),
+        };
+
+        match code {
+            KeyCode::Enter => *self.insert_mode = false,
+            // Cancel operation and not save
+            KeyCode::Esc => {
+                self.handle_delete();
+                *self.insert_mode = false;
+            }
+            KeyCode::Char(c) => buf.push(c),
+            KeyCode::Backspace => {
+                if !buf.is_empty() {
+                    buf.remove(buf.len() - 1);
+                }
+            }
+            _ => {}
+        }
     }
 
     fn clamp_indexes(&mut self) {
