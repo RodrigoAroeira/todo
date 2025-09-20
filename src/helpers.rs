@@ -180,6 +180,10 @@ where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
+    if [&todos, &dones].iter().any(|slice| !slice.is_empty()) && !path.exists() {
+        return Ok(());
+    }
+
     let mut file = File::create(path)?;
     let mut proc = |strs: &[String], str_begin: &str| -> io::Result<()> {
         for s in strs {

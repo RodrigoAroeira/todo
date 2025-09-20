@@ -80,8 +80,6 @@ fn main() -> Result<()> {
     }
 
     reset_scr()?;
-    if [&todos, &dones].iter().any(|slice| !slice.is_empty()) {
-        save_to_file(file_path, &todos, &dones)?;
-    }
+    save_to_file(file_path, &todos, &dones)?;
     Ok(())
 }

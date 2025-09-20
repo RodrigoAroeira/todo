@@ -1,7 +1,7 @@
 TODO: Change project name to 'tick'
 TODO: Implement item edit
 TODO: Implement highlight over current index
-TODO: Fix save logic (only saves if there is any item in the vectors)
 TODO: Fix write_todos_dones (Line splitting breaks indexing)
 DONE: Implement insert logic
 DONE: Implement item move
+DONE: Fix save logic (only saves if there is any item in the vectors)
