@@ -49,8 +49,9 @@ where
     P: AsRef<Path>,
 {
     if path.as_ref().is_dir() {
-        panic!("Provided path is a directory");
+        anyhow::bail!("Provided path is a directory");
     }
+
     let Ok(file) = File::open(&path) else {
         return Ok(Default::default());
     };
