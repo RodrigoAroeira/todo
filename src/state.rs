@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use crossterm::event::KeyCode;
 
 use crate::globals;
@@ -25,6 +27,7 @@ pub struct StateHandler<'a> {
     pub dones:       &'a mut Vec<String>,
     pub dones_idx:   &'a mut usize,
     pub insert_mode: &'a mut bool,
+    pub edit_mode:   &'a mut bool
 }
 
 impl StateHandler<'_> {
@@ -38,6 +41,7 @@ impl StateHandler<'_> {
             KeyCode::Enter     => self.handle_enter_press(),
             KeyCode::Tab       => *self.curr_tab = self.curr_tab.toggle(),
             KeyCode::Char('i') => self.start_insert_mode(),
+            KeyCode::Char('e') => self.start_edit_mode(),
             KeyCode::Char('j') => self.handle_cursor_move(KeyCode::Down),
             KeyCode::Char('k') => self.handle_cursor_move(KeyCode::Up),
             KeyCode::Char('J') => self.handle_move_item(KeyCode::Down),
@@ -97,25 +101,51 @@ impl StateHandler<'_> {
     }
 
     fn start_insert_mode(&mut self) {
-        *self.insert_mode = true;
+        self.start_edit_mode();
+        *self.edit_mode = false;
         match self.curr_tab {
             Tab::Todos => self.todos.insert(*self.todos_idx, String::new()),
             Tab::Dones => self.dones.insert(*self.dones_idx, String::new()),
         }
     }
 
+    fn start_edit_mode(&mut self) {
+        *self.insert_mode = true;
+        *self.edit_mode = true;
+    }
+
+    fn disable_insert_mode(&mut self) {
+        *self.insert_mode = false;
+        *self.edit_mode = false;
+    }
+
+    #[allow(static_mut_refs)]
     fn handle_insert_mode(&mut self, code: KeyCode) {
+        static mut SNAPSHOT: LazyLock<String> = LazyLock::new(String::new);
         let buf = match self.curr_tab {
             Tab::Todos => &mut self.todos.get_mut(*self.todos_idx).unwrap(),
             Tab::Dones => &mut self.dones.get_mut(*self.dones_idx).unwrap(),
         };
 
+        unsafe {
+            if SNAPSHOT.is_empty() && *self.edit_mode {
+                *SNAPSHOT = buf.clone();
+            }
+        }
+
         match code {
-            KeyCode::Enter => *self.insert_mode = false,
+            KeyCode::Enter => self.disable_insert_mode(),
             // Cancel operation and not save
             KeyCode::Esc => {
-                self.handle_delete();
-                *self.insert_mode = false;
+                if *self.edit_mode {
+                    unsafe {
+                        **buf = SNAPSHOT.clone();
+                        SNAPSHOT.clear();
+                    }
+                } else {
+                    self.handle_delete();
+                }
+                self.disable_insert_mode();
             }
             KeyCode::Char(c) => buf.push(c),
             KeyCode::Backspace => {

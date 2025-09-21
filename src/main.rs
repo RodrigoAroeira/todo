@@ -39,6 +39,7 @@ fn main() -> Result<()> {
     let mut todos_idx = 0;
     let mut dones_idx = 0;
     let mut insert_mode = false;
+    let mut edit_mode = false;
 
     let mut term_size = crossterm::terminal::size()?;
     init_scr().context("Failed to initialize screen")?;
@@ -66,6 +67,7 @@ fn main() -> Result<()> {
                 dones:       &mut dones,
                 dones_idx:   &mut dones_idx,
                 insert_mode: &mut insert_mode,
+                edit_mode: &mut edit_mode,
             };
 
             // TODO: Maybe improve break condition
