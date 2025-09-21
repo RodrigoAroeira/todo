@@ -128,14 +128,14 @@ pub fn write_todos_dones(
             let (half1, half2) =
                 split_to_fit(&whole_str, col_mid as usize - if is_dones { 0 } else { 1 });
             queue!(handle, style::Print(half1.to_string() + "\r\n"))?;
-            queue!(
-                handle,
-                style::Print(format!(
-                    "{space}{txt}",
-                    space = " ".repeat(line_begin.chars().count() + 1),
-                    txt = half2
-                ))
-            )?;
+
+            if is_dones {
+                goto(col_mid, y as u16 + 2)?;
+            }
+
+            let space = " ".repeat(line_begin.chars().count() + 1);
+
+            queue!(handle, style::Print(format!("{space}{half2}",)))?;
         }
         Ok(())
     };
