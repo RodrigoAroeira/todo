@@ -180,7 +180,7 @@ where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
-    if [&todos, &dones].iter().any(|slice| !slice.is_empty()) && !path.exists() {
+    if todos.is_empty() && dones.is_empty() && !path.exists() {
         return Ok(());
     }
 
