@@ -12,6 +12,7 @@ pub enum Action {
     Delete,
     SaveQuit,
     NoSaveQuit,
+    ShowHelp,
 }
 
 impl TryFrom<KeyCode> for Action {
@@ -22,6 +23,7 @@ impl TryFrom<KeyCode> for Action {
         Ok(match value {
             KeyCode::Enter => Self::Enter,
             KeyCode::Tab => Self::SwitchTab,
+            KeyCode::Char('h') => Self::ShowHelp,
             KeyCode::Char('i') => Self::Insert(Up),
             KeyCode::Char('o') => Self::Insert(Down),
             KeyCode::Char('e') => Self::Edit,

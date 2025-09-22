@@ -22,6 +22,7 @@ enum InsertMode {
 enum Mode {
     Normal,
     Insert(InsertMode),
+    Help,
 }
 
 pub struct App {
@@ -94,14 +95,23 @@ impl App {
                             self.handle_insert_mode(action);
                         }
                     }
+                    Mode::Help => {
+                        if let Ok(action) = Action::try_from(code) {
+                            self.handle_help_mode(action);
+                        }
+                    }
                 }
             }
         }
     }
 
     fn write_screen(&self, term_size: (u16, u16)) -> io::Result<()> {
-        self.write_header(term_size)?;
-        self.write_todos_dones(term_size)?;
+        if matches!(self.mode, Mode::Help) {
+            self.write_help_screen(term_size)?;
+        } else {
+            self.write_header(term_size)?;
+            self.write_todos_dones(term_size)?;
+        }
         Ok(())
     }
 
@@ -137,12 +147,61 @@ impl App {
             Mode::Normal => "NORMAL",
             Mode::Insert(InsertMode::New) => "INSERT",
             Mode::Insert(InsertMode::Edit(_)) => "EDIT",
+            Mode::Help => "HELP",
         };
 
         let mut handle = io::stdout();
         queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
         queue!(handle, style::Print(txt))?;
         queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
+        Ok(())
+    }
+
+    fn write_help_screen(&self, term_size: (u16, u16)) -> io::Result<()> {
+        let (cols, _) = term_size;
+        let mut handle = io::stdout();
+
+        // Helper to print a full line with newline
+        let mut println = |s: &str| -> io::Result<()> {
+            queue!(handle, style::Print(s))?;
+            queue!(handle, style::Print("\r\n"))?;
+            Ok(())
+        };
+
+        // Title bar
+        println(&"=".repeat(cols as usize))?;
+        println("HELP")?;
+        println(&"=".repeat(cols as usize))?;
+        println("")?;
+
+        // Sections
+        println("ACTIONS")?;
+        println("  h        - Show this screen")?;
+        println("  i / o    - Insert item above / below")?;
+        println("  e        - Edit item under cursor")?;
+        println("  J / K    - Move item under cursor down / up")?;
+        println("  q        - Save and quit")?;
+        println("  Q        - Quit without saving")?;
+        println("")?;
+
+        println("MOVEMENT")?;
+        println("  j / k    - Move cursor down / up")?;
+        println("  g / G    - Jump to beginning / end")?;
+        println("")?;
+
+        println("INSERT / EDIT MODE")?;
+        println("  (type normally to edit text)")?;
+        println("  Enter    - Save changes")?;
+        println("  Esc      - Cancel")?;
+        println("")?;
+
+        println("LEAVING HELP")?;
+        println("  q / Q    - Quit help screen")?;
+        println("")?;
+
+        println(&"=".repeat(cols as usize))?;
+
+        handle.flush()?;
         Ok(())
     }
 
@@ -227,6 +286,7 @@ impl App {
             Action::Delete => self.handle_delete(),
             Action::SaveQuit => anyhow::bail!(globals::BREAK),
             Action::NoSaveQuit => anyhow::bail!(globals::NO_SAVE),
+            Action::ShowHelp => self.mode = Mode::Help,
         }
 
         Ok(())
@@ -326,7 +386,7 @@ impl App {
                 match mem::replace(&mut self.mode, Mode::Normal) {
                     Mode::Insert(InsertMode::Edit(snap)) => *buf = snap,
                     Mode::Insert(InsertMode::New) => self.handle_delete(),
-                    Mode::Normal => unreachable!(),
+                    _ => unreachable!(),
                 };
                 self.disable_insert_mode();
             }
@@ -379,6 +439,13 @@ impl App {
 
         // No need for bound checking due to clamping
         *idx = pos;
+    }
+
+    fn handle_help_mode(&mut self, action: Action) {
+        match action {
+            Action::SaveQuit | Action::NoSaveQuit => self.mode = Mode::Normal,
+            _ => {}
+        }
     }
 
     fn clamp_indexes(&mut self) {
