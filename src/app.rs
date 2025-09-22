@@ -295,7 +295,9 @@ impl App {
     }
 
     fn start_edit_mode(&mut self) {
-        let snap = self.get_current_buffer().clone();
+        let Some(snap) = self.get_current_buffer().cloned() else {
+            return;
+        };
         self.mode = Mode::Insert(InsertMode::Edit(snap))
     }
 
@@ -303,10 +305,10 @@ impl App {
         self.mode = Mode::Normal;
     }
 
-    fn get_current_buffer(&self) -> &String {
+    fn get_current_buffer(&self) -> Option<&String> {
         match self.curr_tab {
-            Tab::Todos => self.todos.get(self.todos_idx).unwrap(),
-            Tab::Dones => self.dones.get(self.dones_idx).unwrap(),
+            Tab::Todos => self.todos.get(self.todos_idx),
+            Tab::Dones => self.dones.get(self.dones_idx),
         }
     }
 
