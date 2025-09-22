@@ -62,6 +62,7 @@ impl App {
         let mut term_size = Default::default();
         init_scr()?;
         loop {
+            self.clamp_indexes();
             handle_term_size(&mut term_size)?;
             clear_scr()?;
             goto_begin()?;
@@ -128,7 +129,6 @@ impl App {
                     col_mid as usize - if col_offset > 0 { 0 } else { 1 },
                 );
 
-                // Draw first line
                 goto(col_offset, idx as u16 + 1)?;
                 if is_active_tab && idx == selected_idx {
                     queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
@@ -138,7 +138,6 @@ impl App {
                     queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
                 }
 
-                // Draw the rest of the lines
                 let space = " ".repeat(line_begin.len() + 1);
                 for (i, line) in rest_lines.into_iter().enumerate() {
                     goto(col_offset, idx as u16 + i as u16 + 2)?;
@@ -154,7 +153,6 @@ impl App {
             Ok(())
         };
 
-        // Draw TODO and DONE columns
         draw_items(
             &self.todos,
             globals::TODO_INDICATOR,
@@ -196,7 +194,6 @@ impl App {
             _ => {}
         }
 
-        self.clamp_indexes();
         Ok(())
     }
 
@@ -245,24 +242,22 @@ impl App {
     }
 
     fn start_insert_mode(&mut self, direction: KeyCode) {
-        let idx_diff = match direction {
-            KeyCode::Up => 0,
-            KeyCode::Down => 1,
-            _ => unreachable!(),
-        };
         self.insert_mode = Some(InsertMode::New);
-        match self.curr_tab {
-            Tab::Todos => {
-                self.todos_idx += idx_diff;
-                self.clamp_indexes();
-                self.todos.insert(self.todos_idx, String::new())
-            }
-            Tab::Dones => {
-                self.dones_idx += idx_diff;
-                self.clamp_indexes();
-                self.dones.insert(self.dones_idx, String::new())
-            }
+
+        let (list, idx) = match self.curr_tab {
+            Tab::Todos => (&mut self.todos, &mut self.todos_idx),
+            Tab::Dones => (&mut self.dones, &mut self.dones_idx),
+        };
+
+        let insert_idx = match direction {
+            KeyCode::Up => *idx,
+            KeyCode::Down => *idx + 1,
+            _ => unreachable!(),
         }
+        .clamp(0, list.len());
+
+        list.insert(insert_idx, String::new());
+        *idx = insert_idx;
     }
 
     fn start_edit_mode(&mut self) {

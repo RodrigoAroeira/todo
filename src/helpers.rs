@@ -74,20 +74,15 @@ where
 pub fn split_to_fit(s: &str, max_width: usize) -> (&str, Vec<&str>) {
     let mut width = 0;
 
-    // Find the optimal split point
     for (i, c) in s.char_indices() {
         let cw = c.width().unwrap_or(1);
 
-        // If adding this character would exceed max width, split before it
         if width + cw > max_width {
             if i == 0 {
-                // Edge case: first character already exceeds max width
-                // Split after this character to avoid infinite recursion
                 let (first_char, remainder) = s.split_at(c.len_utf8());
                 return (first_char, vec![remainder]);
             }
 
-            // Split at the current position
             let (first_part, remainder) = s.split_at(i);
             return (first_part, split_remainder(remainder, max_width));
         }
@@ -95,11 +90,9 @@ pub fn split_to_fit(s: &str, max_width: usize) -> (&str, Vec<&str>) {
         width += cw;
     }
 
-    // The entire string fits within max_width
     (s, Vec::new())
 }
 
-// Helper function to split the remainder recursively
 fn split_remainder(s: &str, max_width: usize) -> Vec<&str> {
     if s.is_empty() {
         return Vec::new();
