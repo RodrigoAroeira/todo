@@ -1,4 +1,3 @@
-TODO: Change project name to 'tick'
 TODO: Fix line splitting for dones
 TODO: Fix line splitting indexing
 DONE: Implement insert logic
@@ -6,3 +5,4 @@ DONE: Implement item move
 DONE: Fix save logic (only saves if there is any item in the vectors)
 DONE: Implement item edit
 DONE: Implement highlight over current index
+DONE: Change project name to 'tick'

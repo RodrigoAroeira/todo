@@ -265,7 +265,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "todo"
+name = "tick"
 version = "0.7.2"
 dependencies = [
  "anyhow",
