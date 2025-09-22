@@ -1,5 +1,5 @@
 use std::{
-    io,
+    io::{self, Write},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -65,7 +65,7 @@ impl App {
             handle_term_size(&mut term_size)?;
             clear_scr()?;
             goto_begin()?;
-            self.write_todos_dones(term_size)?;
+            self.write_screen(term_size)?;
 
             let mid_scr = term_size.0 / 2;
             match self.curr_tab {
@@ -79,17 +79,18 @@ impl App {
         }
     }
 
-    fn write_todos_dones(&self, term_size: (u16, u16)) -> io::Result<()> {
-        {
-            let (cols, _) = term_size;
-            let col_mid = cols / 2;
-            let mut handle = io::stdout().lock();
-            let is_tab_todo = matches!(self.curr_tab, Tab::Todos);
+    fn write_screen(&self, term_size: (u16, u16)) -> io::Result<()> {
+        self.write_header(term_size)?;
+        self.write_todos_dones(term_size)?;
+        Ok(())
+    }
 
-            let proc = |s: &str,
-                        should_reverse: bool,
-                        handle: &mut io::StdoutLock<'_>|
-             -> io::Result<()> {
+    fn write_header(&self, term_size: (u16, u16)) -> io::Result<()> {
+        let col_mid = term_size.0 / 2;
+        let mut handle = io::stdout().lock();
+        let is_tab_todo = matches!(self.curr_tab, Tab::Todos);
+        let draw_header =
+            |s: &str, should_reverse: bool, handle: &mut io::StdoutLock<'_>| -> io::Result<()> {
                 if should_reverse {
                     queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
                 }
@@ -103,45 +104,74 @@ impl App {
                 Ok(())
             };
 
-            proc("TODO", is_tab_todo, &mut handle)?;
-            queue!(handle, style::Print(" ".repeat(col_mid as usize - 4)))?;
-            proc("DONE\r\n", !is_tab_todo, &mut handle)?;
+        draw_header("TODO", is_tab_todo, &mut handle)?;
+        queue!(handle, style::Print(" ".repeat(col_mid as usize - 4)))?;
+        draw_header("DONE\r\n", !is_tab_todo, &mut handle)?;
+        Ok(())
+    }
 
-            let mut proc = |strs: &[String], line_begin: &str, is_dones: bool| -> io::Result<()> {
-                for (y, item) in strs.iter().enumerate() {
-                    let whole_str = format!("{} {}\r\n", line_begin, item);
+    fn write_todos_dones(&self, term_size: (u16, u16)) -> io::Result<()> {
+        let (cols, _) = term_size;
+        let col_mid = cols / 2;
+        let mut handle = io::stdout().lock();
 
-                    if is_dones {
-                        goto(col_mid, y as u16 + 1)?;
+        let mut draw_items = |items: &[String],
+                              line_begin: &str,
+                              is_active_tab: bool,
+                              selected_idx: usize,
+                              col_offset: u16|
+         -> io::Result<()> {
+            for (idx, item) in items.iter().enumerate() {
+                let full_line = format!("{} {}", line_begin, item);
+                let (first_line, rest_lines) = split_to_fit(
+                    &full_line,
+                    col_mid as usize - if col_offset > 0 { 0 } else { 1 },
+                );
+
+                // Draw first line
+                goto(col_offset, idx as u16 + 1)?;
+                if is_active_tab && idx == selected_idx {
+                    queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
+                }
+                queue!(handle, style::Print(first_line))?;
+                if is_active_tab && idx == selected_idx {
+                    queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
+                }
+
+                // Draw the rest of the lines
+                let space = " ".repeat(line_begin.len() + 1);
+                for (i, line) in rest_lines.into_iter().enumerate() {
+                    goto(col_offset, idx as u16 + i as u16 + 2)?;
+                    if is_active_tab && idx == selected_idx {
+                        queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
                     }
-
-                    if whole_str.trim().chars().count() < col_mid as usize {
-                        queue!(handle, style::Print(whole_str))?;
-                        continue;
-                    }
-                    let (half1, rest) =
-                        split_to_fit(&whole_str, col_mid as usize - if is_dones { 0 } else { 1 });
-                    queue!(handle, style::Print(half1.to_string() + "\r\n"))?;
-
-                    let space = " ".repeat(line_begin.chars().count() + 1);
-
-                    // TODO: Check correctly for line wrapping and indexing.
-                    // Maybe use last_line_breaks: Option<usize>
-                    for (i, line) in rest.into_iter().enumerate() {
-                        if is_dones {
-                            goto(col_mid, (y + i) as u16 + 2)?;
-                        }
-                        queue!(handle, style::Print(format!("{space}{line}",)))?;
+                    queue!(handle, style::Print(format!("{space}{line}")))?;
+                    if is_active_tab && idx == selected_idx {
+                        queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
                     }
                 }
-                Ok(())
-            };
+            }
+            Ok(())
+        };
 
-            proc(&self.todos, globals::TODO_INDICATOR, false)?;
-            proc(&self.dones, globals::DONE_INDICATOR, true)?;
+        // Draw TODO and DONE columns
+        draw_items(
+            &self.todos,
+            globals::TODO_INDICATOR,
+            matches!(self.curr_tab, Tab::Todos),
+            self.todos_idx,
+            0,
+        )?;
+        draw_items(
+            &self.dones,
+            globals::DONE_INDICATOR,
+            matches!(self.curr_tab, Tab::Dones),
+            self.dones_idx,
+            col_mid,
+        )?;
 
-            io::Write::flush(&mut handle)
-        }
+        handle.flush()?;
+        Ok(())
     }
 
     fn execute_action(&mut self, code: KeyCode) -> anyhow::Result<()> {

@@ -29,7 +29,7 @@ pub fn goto_begin() -> io::Result<()> {
 }
 
 pub fn init_scr() -> io::Result<()> {
-    execute!(io::stdout(), EnterAlternateScreen)?;
+    execute!(io::stdout(), EnterAlternateScreen, cursor::Hide)?;
     goto_begin()?;
     clear_scr()?;
     enable_raw_mode()?;
@@ -37,7 +37,7 @@ pub fn init_scr() -> io::Result<()> {
 }
 
 pub fn reset_scr() -> io::Result<()> {
-    execute!(io::stdout(), LeaveAlternateScreen)?;
+    execute!(io::stdout(), LeaveAlternateScreen, cursor::Show)?;
     disable_raw_mode()?;
     Ok(())
 }
