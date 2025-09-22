@@ -74,6 +74,7 @@ impl App {
             clear_scr()?;
             goto_begin()?;
             self.write_screen(term_size)?;
+            self.write_status(term_size)?;
 
             let mid_scr = term_size.0 / 2;
             match self.curr_tab {
@@ -126,6 +127,21 @@ impl App {
         draw_header("TODO", is_tab_todo, &mut handle)?;
         queue!(handle, style::Print(" ".repeat(col_mid as usize - 4)))?;
         draw_header("DONE\r\n", !is_tab_todo, &mut handle)?;
+        Ok(())
+    }
+
+    fn write_status(&self, term_size: (u16, u16)) -> io::Result<()> {
+        goto(0, term_size.0)?;
+        let txt = match self.mode {
+            Mode::Normal => "NORMAL",
+            Mode::Insert(InsertMode::New) => "INSERT",
+            Mode::Insert(InsertMode::Edit(_)) => "EDIT",
+        };
+
+        let mut handle = io::stdout();
+        queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
+        queue!(handle, style::Print(txt))?;
+        queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
         Ok(())
     }
 
