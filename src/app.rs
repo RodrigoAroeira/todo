@@ -122,32 +122,39 @@ impl App {
                               selected_idx: usize,
                               col_offset: u16|
          -> io::Result<()> {
+            let mut current_line = 1;
             for (idx, item) in items.iter().enumerate() {
+                let should_highlight = is_active_tab && idx == selected_idx;
                 let full_line = format!("{} {}", line_begin, item);
                 let (first_line, rest_lines) = split_to_fit(
                     &full_line,
                     col_mid as usize - if col_offset > 0 { 0 } else { 1 },
                 );
 
-                goto(col_offset, idx as u16 + 1)?;
-                if is_active_tab && idx == selected_idx {
+                // Start at the first line for this item
+
+                // Draw first line
+                goto(col_offset, current_line)?;
+                if should_highlight {
                     queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
                 }
                 queue!(handle, style::Print(first_line))?;
-                if is_active_tab && idx == selected_idx {
+                if should_highlight {
                     queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
                 }
+                current_line += 1;
 
-                let space = " ".repeat(line_begin.len() + 1);
-                for (i, line) in rest_lines.into_iter().enumerate() {
-                    goto(col_offset, idx as u16 + i as u16 + 2)?;
-                    if is_active_tab && idx == selected_idx {
+                let padding = " ".repeat(line_begin.len() + 1);
+                for line in rest_lines {
+                    goto(col_offset, current_line)?;
+                    if should_highlight {
                         queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
                     }
-                    queue!(handle, style::Print(format!("{space}{line}")))?;
-                    if is_active_tab && idx == selected_idx {
+                    queue!(handle, style::Print(format!("{}{}", padding, line)))?;
+                    if should_highlight {
                         queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
                     }
+                    current_line += 1;
                 }
             }
             Ok(())
