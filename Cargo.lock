@@ -266,7 +266,7 @@ dependencies = [
 
 [[package]]
 name = "tick"
-version = "0.7.2"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "crossterm",

@@ -195,6 +195,8 @@ impl App {
             KeyCode::Char('k') => self.handle_cursor_move(KeyCode::Up),
             KeyCode::Char('J') => self.handle_move_item(KeyCode::Down),
             KeyCode::Char('K') => self.handle_move_item(KeyCode::Up),
+            KeyCode::Char('g') => self.goto_list_pos(0),
+            KeyCode::Char('G') => self.goto_list_pos(usize::MAX),
             KeyCode::Char('d') => self.handle_delete(),
             KeyCode::Char('q') => anyhow::bail!(globals::BREAK),
             KeyCode::Char('Q') => anyhow::bail!(globals::NO_SAVE),
@@ -339,6 +341,16 @@ impl App {
 
         vec.swap(idx_val, new_idx);
         *idx = new_idx;
+    }
+
+    fn goto_list_pos(&mut self, pos: usize) {
+        let idx = match self.curr_tab {
+            Tab::Todos => &mut self.todos_idx,
+            Tab::Dones => &mut self.dones_idx,
+        };
+
+        // No need for bound checking due to clamping
+        *idx = pos;
     }
 
     fn clamp_indexes(&mut self) {
