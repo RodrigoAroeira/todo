@@ -4,17 +4,15 @@ use std::path::Path;
 use std::time;
 
 use anyhow::Result;
-use crossterm::style;
 use crossterm::terminal::{
     self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
     enable_raw_mode,
 };
-use crossterm::{cursor, event, execute, queue};
+use crossterm::{cursor, event, execute};
 // TODO: Replace this dependency with builtin logic
 use unicode_width::UnicodeWidthChar;
 
 use crate::globals;
-use crate::tab::Tab;
 
 pub fn clear_scr() -> io::Result<()> {
     execute!(io::stdout(), Clear(ClearType::All))?;
