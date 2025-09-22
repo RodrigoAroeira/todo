@@ -14,7 +14,7 @@ use crossterm::{cursor, event, execute, queue};
 use unicode_width::UnicodeWidthChar;
 
 use crate::globals;
-use crate::state::Tab;
+use crate::tab::Tab;
 
 pub fn clear_scr() -> io::Result<()> {
     execute!(io::stdout(), Clear(ClearType::All))?;
@@ -73,78 +73,62 @@ where
     Ok((todos, dones))
 }
 
-fn split_to_fit(s: &str, max_width: usize) -> (&str, &str) {
+pub fn split_to_fit(s: &str, max_width: usize) -> (&str, Vec<&str>) {
     let mut width = 0;
+
+    // Find the optimal split point
     for (i, c) in s.char_indices() {
-        let cw = c.width().unwrap_or(0);
+        let cw = c.width().unwrap_or(1);
+
+        // If adding this character would exceed max width, split before it
         if width + cw > max_width {
-            return s.split_at(i);
+            if i == 0 {
+                // Edge case: first character already exceeds max width
+                // Split after this character to avoid infinite recursion
+                let (first_char, remainder) = s.split_at(c.len_utf8());
+                return (first_char, vec![remainder]);
+            }
+
+            // Split at the current position
+            let (first_part, remainder) = s.split_at(i);
+            return (first_part, split_remainder(remainder, max_width));
         }
+
         width += cw;
     }
-    (s, "")
+
+    // The entire string fits within max_width
+    (s, Vec::new())
 }
 
-pub fn write_todos_dones(
-    todos: &[String],
-    dones: &[String],
-    term_size: (u16, u16),
-    curr_tab: Tab,
-) -> io::Result<()> {
-    let (cols, _) = term_size;
-    let col_mid = cols / 2;
-    let mut handle = io::stdout().lock();
-    let is_tab_todo = matches!(curr_tab, Tab::Todos);
+// Helper function to split the remainder recursively
+fn split_remainder(s: &str, max_width: usize) -> Vec<&str> {
+    if s.is_empty() {
+        return Vec::new();
+    }
 
-    let proc = |s: &str, should_reverse: bool, handle: &mut io::StdoutLock<'_>| -> io::Result<()> {
-        if should_reverse {
-            queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
+    let mut result = Vec::new();
+    let mut current = s;
+
+    while !current.is_empty() {
+        let mut width = 0;
+        let mut split_index = current.len();
+
+        for (i, c) in current.char_indices() {
+            let cw = c.width().unwrap_or(1);
+            if width + cw > max_width {
+                split_index = i;
+                break;
+            }
+            width += cw;
         }
 
-        queue!(handle, style::Print(s))?;
+        let (chunk, remainder) = current.split_at(split_index);
+        result.push(chunk);
+        current = remainder;
+    }
 
-        if should_reverse {
-            queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
-        }
-
-        Ok(())
-    };
-
-    proc("TODO", is_tab_todo, &mut handle)?;
-    queue!(handle, style::Print(" ".repeat(col_mid as usize - 4)))?;
-    proc("DONE\r\n", !is_tab_todo, &mut handle)?;
-
-    let mut proc = |strs: &[String], line_begin: &str, is_dones: bool| -> io::Result<()> {
-        for (y, item) in strs.iter().enumerate() {
-            let whole_str = format!("{} {}\r\n", line_begin, item);
-
-            if is_dones {
-                goto(col_mid, y as u16 + 1)?;
-            }
-
-            if whole_str.trim().chars().count() < col_mid as usize {
-                queue!(handle, style::Print(whole_str))?;
-                continue;
-            }
-            let (half1, half2) =
-                split_to_fit(&whole_str, col_mid as usize - if is_dones { 0 } else { 1 });
-            queue!(handle, style::Print(half1.to_string() + "\r\n"))?;
-
-            if is_dones {
-                goto(col_mid, y as u16 + 2)?;
-            }
-
-            let space = " ".repeat(line_begin.chars().count() + 1);
-
-            queue!(handle, style::Print(format!("{space}{half2}",)))?;
-        }
-        Ok(())
-    };
-
-    proc(todos, globals::TODO_INDICATOR, false)?;
-    proc(dones, globals::DONE_INDICATOR, true)?;
-
-    handle.flush()
+    result
 }
 
 pub fn handle_term_size(term_size: &mut (u16, u16)) -> io::Result<()> {
