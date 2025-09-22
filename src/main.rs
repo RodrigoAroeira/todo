@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 
 use helpers::{
     clear_scr, get_key_event, get_todos_dones, goto, goto_begin, handle_term_size, init_scr,
-    reset_scr, save_to_file, write_todos_dones,
+    save_to_file, write_todos_dones,
 };
 use screen_guard::ScreenGuard;
 use state::{StateHandler, Tab};
@@ -44,44 +44,45 @@ fn main() -> Result<()> {
 
     let mut term_size = crossterm::terminal::size()?;
     init_scr().context("Failed to initialize screen")?;
-    let _guard = ScreenGuard {};
 
-    loop {
-        handle_term_size(&mut term_size)?;
-        clear_scr()?;
-        goto_begin()?;
-        write_todos_dones(&todos, &dones, term_size, curr_tab)?;
+    {
+        let _guard = ScreenGuard {};
+        loop {
+            handle_term_size(&mut term_size)?;
+            clear_scr()?;
+            goto_begin()?;
+            write_todos_dones(&todos, &dones, term_size, curr_tab)?;
 
-        let mid_scr = term_size.0 / 2;
-        match curr_tab {
-            Tab::Todos => goto(0, todos_idx as u16 + 1)?,
-            Tab::Dones => goto(mid_scr, dones_idx as u16 + 1)?,
-        }
+            let mid_scr = term_size.0 / 2;
+            match curr_tab {
+                Tab::Todos => goto(0, todos_idx as u16 + 1)?,
+                Tab::Dones => goto(mid_scr, dones_idx as u16 + 1)?,
+            }
 
-        if let Some(code) = get_key_event(Duration::from_millis(1000 / 60))? {
-            #[rustfmt::skip]
-            let mut handler = StateHandler {
-                curr_tab:    &mut curr_tab,
-                todos:       &mut todos,
-                todos_idx:   &mut todos_idx,
-                dones:       &mut dones,
-                dones_idx:   &mut dones_idx,
-                insert_mode: &mut insert_mode,
-                edit_mode:   &mut edit_mode,
-            };
+            if let Some(code) = get_key_event(Duration::from_millis(1000 / 60))? {
+                #[rustfmt::skip]
+                let mut handler = StateHandler {
+                    curr_tab:    &mut curr_tab,
+                    todos:       &mut todos,
+                    todos_idx:   &mut todos_idx,
+                    dones:       &mut dones,
+                    dones_idx:   &mut dones_idx,
+                    insert_mode: &mut insert_mode,
+                    edit_mode:   &mut edit_mode,
+                };
 
-            // TODO: Maybe improve break condition
-            if let Err(e) = handler.execute_action(code) {
-                match e.to_string().as_str() {
-                    globals::BREAK => break,
-                    globals::NO_SAVE => return Ok(()),
-                    _ => Err(e)?,
+                // TODO: Maybe improve break condition
+                if let Err(e) = handler.execute_action(code) {
+                    match e.to_string().as_str() {
+                        globals::BREAK => break,
+                        globals::NO_SAVE => return Ok(()),
+                        _ => Err(e)?,
+                    }
                 }
             }
         }
     }
 
-    reset_scr()?;
     save_to_file(file_path, &todos, &dones)?;
     Ok(())
 }
