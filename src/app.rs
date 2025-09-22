@@ -1,11 +1,13 @@
 use std::{
     io::{self, Write},
+    mem,
     path::{Path, PathBuf},
     time::Duration,
 };
 
 use crossterm::{event::KeyCode, queue, style};
 
+use crate::action::{Action, InsertAction};
 use crate::helpers::{
     clear_scr, get_key_event, get_todos_dones, goto, goto_begin, handle_term_size, init_scr,
     save_to_file, split_to_fit,
@@ -17,6 +19,11 @@ enum InsertMode {
     Edit(String),
 }
 
+enum Mode {
+    Normal,
+    Insert(InsertMode),
+}
+
 pub struct App {
     todos: Vec<String>,
     dones: Vec<String>,
@@ -24,7 +31,7 @@ pub struct App {
     todos_idx: usize,
     dones_idx: usize,
     curr_tab: Tab,
-    insert_mode: Option<InsertMode>,
+    mode: Mode,
 }
 
 impl App {
@@ -40,7 +47,7 @@ impl App {
             todos_idx: 0,
             dones_idx: 0,
             curr_tab: Tab::Todos,
-            insert_mode: None,
+            mode: Mode::Normal,
         };
         Ok(s)
     }
@@ -75,7 +82,18 @@ impl App {
             }
 
             if let Some(code) = get_key_event(Duration::from_millis(1000 / 60))? {
-                self.execute_action(code)?;
+                match self.mode {
+                    Mode::Normal => {
+                        if let Ok(action) = Action::try_from(code) {
+                            self.execute_action(action)?;
+                        }
+                    }
+                    Mode::Insert(_) => {
+                        if let Ok(action) = InsertAction::try_from(code) {
+                            self.handle_insert_mode(action);
+                        }
+                    }
+                }
             }
         }
     }
@@ -179,28 +197,19 @@ impl App {
         Ok(())
     }
 
-    fn execute_action(&mut self, code: KeyCode) -> anyhow::Result<()> {
-        if self.insert_mode.is_some() {
-            self.handle_insert_mode(code);
-            return Ok(());
-        }
-
-        match code {
-            KeyCode::Enter => self.handle_enter_press(),
-            KeyCode::Tab => self.curr_tab = self.curr_tab.toggle(),
-            KeyCode::Char('i') => self.start_insert_mode(KeyCode::Up),
-            KeyCode::Char('o') => self.start_insert_mode(KeyCode::Down),
-            KeyCode::Char('e') => self.start_edit_mode(),
-            KeyCode::Char('j') => self.handle_cursor_move(KeyCode::Down),
-            KeyCode::Char('k') => self.handle_cursor_move(KeyCode::Up),
-            KeyCode::Char('J') => self.handle_move_item(KeyCode::Down),
-            KeyCode::Char('K') => self.handle_move_item(KeyCode::Up),
-            KeyCode::Char('g') => self.goto_list_pos(0),
-            KeyCode::Char('G') => self.goto_list_pos(usize::MAX),
-            KeyCode::Char('d') => self.handle_delete(),
-            KeyCode::Char('q') => anyhow::bail!(globals::BREAK),
-            KeyCode::Char('Q') => anyhow::bail!(globals::NO_SAVE),
-            _ => {}
+    fn execute_action(&mut self, action: Action) -> anyhow::Result<()> {
+        match action {
+            Action::Enter => self.handle_enter_press(),
+            Action::SwitchTab => self.curr_tab = self.curr_tab.toggle(),
+            Action::Insert(direction) => self.start_insert_mode(direction),
+            Action::Edit => self.start_edit_mode(),
+            Action::MoveCursor(direction) => self.handle_cursor_move(direction),
+            Action::MoveItem(direction) => self.handle_move_item(direction),
+            Action::GotoBegin => self.goto_list_pos(0),
+            Action::GotoEnd => self.goto_list_pos(usize::MAX),
+            Action::Delete => self.handle_delete(),
+            Action::SaveQuit => anyhow::bail!(globals::BREAK),
+            Action::NoSaveQuit => anyhow::bail!(globals::NO_SAVE),
         }
 
         Ok(())
@@ -251,7 +260,7 @@ impl App {
     }
 
     fn start_insert_mode(&mut self, direction: KeyCode) {
-        self.insert_mode = Some(InsertMode::New);
+        self.mode = Mode::Insert(InsertMode::New);
 
         let (list, idx) = match self.curr_tab {
             Tab::Todos => (&mut self.todos, &mut self.todos_idx),
@@ -271,11 +280,11 @@ impl App {
 
     fn start_edit_mode(&mut self) {
         let snap = self.get_current_buffer().clone();
-        self.insert_mode = Some(InsertMode::Edit(snap))
+        self.mode = Mode::Insert(InsertMode::Edit(snap))
     }
 
     fn disable_insert_mode(&mut self) {
-        self.insert_mode = None
+        self.mode = Mode::Normal;
     }
 
     fn get_current_buffer(&self) -> &String {
@@ -285,29 +294,29 @@ impl App {
         }
     }
 
-    fn handle_insert_mode(&mut self, code: KeyCode) {
+    fn handle_insert_mode(&mut self, code: InsertAction) {
         let buf = match self.curr_tab {
             Tab::Todos => self.todos.get_mut(self.todos_idx).unwrap(),
             Tab::Dones => self.dones.get_mut(self.dones_idx).unwrap(),
         };
 
         match code {
-            KeyCode::Enter => self.disable_insert_mode(),
+            InsertAction::Enter => self.disable_insert_mode(),
             // Cancel operation and not save
-            KeyCode::Esc => {
-                match self.insert_mode.take() {
-                    Some(InsertMode::Edit(snap)) => *buf = snap,
-                    Some(InsertMode::New) => self.handle_delete(),
-                    None => unreachable!(),
+            InsertAction::Cancel => {
+                match mem::replace(&mut self.mode, Mode::Normal) {
+                    Mode::Insert(InsertMode::Edit(snap)) => *buf = snap,
+                    Mode::Insert(InsertMode::New) => self.handle_delete(),
+                    Mode::Normal => unreachable!(),
                 };
+                self.disable_insert_mode();
             }
-            KeyCode::Char(c) => buf.push(c),
-            KeyCode::Backspace => {
+            InsertAction::Char(c) => buf.push(c),
+            InsertAction::DeleteChar => {
                 if !buf.is_empty() {
                     buf.remove(buf.len() - 1);
                 }
             }
-            _ => {}
         }
     }
 

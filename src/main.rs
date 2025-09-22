@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::app::App;
 
+mod action;
 mod app;
 mod globals;
 mod helpers;
