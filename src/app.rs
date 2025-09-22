@@ -131,7 +131,8 @@ impl App {
     }
 
     fn write_status(&self, term_size: (u16, u16)) -> io::Result<()> {
-        goto(0, term_size.0)?;
+        let (_cols, rows) = term_size;
+        goto(0, rows - 1)?;
         let txt = match self.mode {
             Mode::Normal => "NORMAL",
             Mode::Insert(InsertMode::New) => "INSERT",
