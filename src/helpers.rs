@@ -161,15 +161,15 @@ where
     }
 
     let mut file = File::create(path)?;
-    let mut proc = |strs: &[String], str_begin: &str| -> io::Result<()> {
+    let mut write_to_file = |strs: &[String], str_begin: &str| -> io::Result<()> {
         for s in strs {
             writeln!(file, "{}{}", str_begin, s)?;
         }
         Ok(())
     };
 
-    proc(todos, globals::TODO_PREFIX)?;
-    proc(dones, globals::DONE_PREFIX)?;
+    write_to_file(todos, globals::TODO_PREFIX)?;
+    write_to_file(dones, globals::DONE_PREFIX)?;
 
     println!("Saved state to {}", path.display());
 
