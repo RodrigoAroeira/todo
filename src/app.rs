@@ -83,20 +83,20 @@ impl App {
                 Tab::Dones => goto(mid_scr, self.dones_idx as u16 + 1)?,
             }
 
-            if let Some(code) = get_key_event(Duration::from_millis(1000 / 60))? {
+            if let Some(event) = get_key_event(Duration::from_millis(1000 / 60))? {
                 match self.mode {
                     Mode::Normal => {
-                        if let Ok(action) = Action::try_from(code) {
+                        if let Ok(action) = Action::try_from(event) {
                             self.execute_action(action)?;
                         }
                     }
                     Mode::Insert(_) => {
-                        if let Ok(action) = InsertAction::try_from(code) {
+                        if let Ok(action) = InsertAction::try_from(event) {
                             self.handle_insert_mode(action);
                         }
                     }
                     Mode::Help => {
-                        if let Ok(action) = Action::try_from(code) {
+                        if let Ok(action) = Action::try_from(event) {
                             self.handle_help_mode(action);
                         }
                     }

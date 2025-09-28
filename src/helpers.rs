@@ -140,13 +140,13 @@ pub fn handle_term_size(term_size: &mut (u16, u16)) -> io::Result<()> {
     Ok(())
 }
 
-pub fn get_key_event(timeout: time::Duration) -> io::Result<Option<event::KeyCode>> {
+pub fn get_key_event(timeout: time::Duration) -> io::Result<Option<event::KeyEvent>> {
     if !event::poll(timeout)? {
         return Ok(None);
     }
 
     match event::read()? {
-        event::Event::Key(event) => Ok(Some(event.code)),
+        event::Event::Key(event) => Ok(Some(event)),
         _ => Ok(None),
     }
 }

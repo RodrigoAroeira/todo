@@ -1,4 +1,4 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub enum Action {
     Enter,
@@ -15,12 +15,12 @@ pub enum Action {
     ShowHelp,
 }
 
-impl TryFrom<KeyCode> for Action {
+impl TryFrom<KeyEvent> for Action {
     type Error = ();
 
-    fn try_from(value: KeyCode) -> Result<Self, Self::Error> {
+    fn try_from(event: KeyEvent) -> Result<Self, Self::Error> {
         use KeyCode::{Down, Up};
-        Ok(match value {
+        Ok(match event.code {
             KeyCode::Enter => Self::Enter,
             KeyCode::Tab => Self::SwitchTab,
             KeyCode::Char('h') => Self::ShowHelp,
@@ -36,6 +36,9 @@ impl TryFrom<KeyCode> for Action {
             KeyCode::Char('d') => Self::Delete,
             KeyCode::Char('q') => Self::SaveQuit,
             KeyCode::Char('Q') => Self::NoSaveQuit,
+            KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                Self::NoSaveQuit
+            }
             _ => return Err(()),
         })
     }
@@ -48,13 +51,13 @@ pub enum InsertAction {
     Cancel,
 }
 
-impl TryFrom<KeyCode> for InsertAction {
+impl TryFrom<KeyEvent> for InsertAction {
     type Error = ();
 
-    fn try_from(value: KeyCode) -> Result<Self, Self::Error> {
+    fn try_from(event: KeyEvent) -> Result<Self, Self::Error> {
         use KeyCode::{Backspace, Char, Enter, Esc};
 
-        Ok(match value {
+        Ok(match event.code {
             Char(c) => Self::Char(c),
             Backspace => Self::DeleteChar,
             Enter => Self::Enter,
