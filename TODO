@@ -11,3 +11,4 @@ DONE: Change project name to 'tick'
 DONE: Implement status bar
 DONE: Implement help screen
 DONE: Implement <C-c> handling
+DONE: Implement arrow key movement

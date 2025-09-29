@@ -19,26 +19,53 @@ impl TryFrom<KeyEvent> for Action {
     type Error = ();
 
     fn try_from(event: KeyEvent) -> Result<Self, Self::Error> {
-        use KeyCode::{Down, Up};
+        use KeyCode::{Char, Down, Enter, Tab, Up};
+        use KeyModifiers as M;
+
+        let m = event.modifiers;
+
         Ok(match event.code {
-            KeyCode::Enter => Self::Enter,
-            KeyCode::Tab => Self::SwitchTab,
-            KeyCode::Char('h') => Self::ShowHelp,
-            KeyCode::Char('i') => Self::Insert(Up),
-            KeyCode::Char('o') => Self::Insert(Down),
-            KeyCode::Char('e') => Self::Edit,
-            KeyCode::Char('k') => Self::MoveCursor(Up),
-            KeyCode::Char('j') => Self::MoveCursor(Down),
-            KeyCode::Char('J') => Self::MoveItem(Down),
-            KeyCode::Char('K') => Self::MoveItem(Up),
-            KeyCode::Char('g') => Self::GotoBegin,
-            KeyCode::Char('G') => Self::GotoEnd,
-            KeyCode::Char('d') => Self::Delete,
-            KeyCode::Char('q') => Self::SaveQuit,
-            KeyCode::Char('Q') => Self::NoSaveQuit,
-            KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
-                Self::NoSaveQuit
-            }
+            // ── Core actions ────────────────────────────────
+            Enter => Self::Enter,
+            Tab => Self::SwitchTab,
+            Char('h') => Self::ShowHelp,
+
+            // ── Insert / Edit ───────────────────────────────
+            Char('i') => Self::Insert(Up),
+            Char('o') => Self::Insert(Down),
+            Char('e') => Self::Edit,
+
+            // ── Navigation ─────────────────────────────────
+            // Vim keys
+            Char('k') => Self::MoveCursor(Up),
+            Char('j') => Self::MoveCursor(Down),
+
+            // Arrow keys
+            Up if !m.contains(M::SHIFT) => Self::MoveCursor(Up),
+            Down if !m.contains(M::SHIFT) => Self::MoveCursor(Down),
+
+            // ── Item movement ──────────────────────────────
+            // Vim keys
+            Char('K') => Self::MoveItem(Up),
+            Char('J') => Self::MoveItem(Down),
+
+            // Shift + Arrows
+            Up if m.contains(M::SHIFT) => Self::MoveItem(Up),
+            Down if m.contains(M::SHIFT) => Self::MoveItem(Down),
+
+            // ── Jumping ────────────────────────────────────
+            Char('g') => Self::GotoBegin,
+            Char('G') => Self::GotoEnd,
+
+            // ── Item / Buffer management ───────────────────
+            Char('d') => Self::Delete,
+
+            // ── Quit ───────────────────────────────────────
+            Char('q') => Self::SaveQuit,
+            Char('Q') => Self::NoSaveQuit,
+            Char('c') if m.contains(M::CONTROL) => Self::NoSaveQuit,
+
+            // ── Fallback ───────────────────────────────────
             _ => return Err(()),
         })
     }
