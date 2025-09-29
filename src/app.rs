@@ -7,7 +7,7 @@ use std::{
 
 use crossterm::{event::KeyCode, queue, style};
 
-use crate::action::{Action, InsertAction};
+use crate::action::{Action, InsertAction, TabAction};
 use crate::helpers::{
     clear_scr, get_key_event, get_todos_dones, goto, goto_begin, handle_term_size, init_scr,
     save_to_file, split_to_fit,
@@ -176,7 +176,7 @@ impl App {
 
         // Sections
         println("ACTIONS")?;
-        println("  h        - Show this screen")?;
+        println("  f1       - Show this screen")?;
         println("  i / o    - Insert item above / below")?;
         println("  e        - Edit item under cursor")?;
         println("  J / K    - Move item under cursor down / up")?;
@@ -187,6 +187,8 @@ impl App {
         println("MOVEMENT")?;
         println("  j / k    - Move cursor down / up")?;
         println("  g / G    - Jump to beginning / end")?;
+        println("  Tab      - Toggle Tab")?;
+        println("  <-/->    - Change to todo/done tab")?;
         println("")?;
 
         println("INSERT / EDIT MODE")?;
@@ -276,7 +278,11 @@ impl App {
     fn execute_action(&mut self, action: Action) -> anyhow::Result<()> {
         match action {
             Action::Enter => self.handle_enter_press(),
-            Action::SwitchTab => self.curr_tab = self.curr_tab.toggle(),
+            Action::SwitchTab(tab) => match tab {
+                TabAction::Toggle => self.curr_tab = self.curr_tab.toggle(),
+                TabAction::Left => self.curr_tab = Tab::Todos,
+                TabAction::Right => self.curr_tab = Tab::Dones,
+            },
             Action::Insert(direction) => self.start_insert_mode(direction),
             Action::Edit => self.start_edit_mode(),
             Action::MoveCursor(direction) => self.handle_cursor_move(direction),
