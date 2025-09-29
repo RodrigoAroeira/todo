@@ -71,7 +71,11 @@ where
     Ok((todos, dones))
 }
 
-pub fn split_to_fit(s: &str, max_width: usize) -> (&str, Vec<&str>) {
+pub fn split_to_fit(
+    s: &str,
+    max_width: usize,
+    offset: usize, // width to skip at the beginning (like line_begin + " ")
+) -> (&str, Vec<&str>) {
     let mut width = 0;
 
     for (i, c) in s.char_indices() {
@@ -80,11 +84,11 @@ pub fn split_to_fit(s: &str, max_width: usize) -> (&str, Vec<&str>) {
         if width + cw > max_width {
             if i == 0 {
                 let (first_char, remainder) = s.split_at(c.len_utf8());
-                return (first_char, vec![remainder]);
+                return (first_char, split_remainder(remainder, max_width, offset));
             }
 
             let (first_part, remainder) = s.split_at(i);
-            return (first_part, split_remainder(remainder, max_width));
+            return (first_part, split_remainder(remainder, max_width, offset));
         }
 
         width += cw;
@@ -93,24 +97,22 @@ pub fn split_to_fit(s: &str, max_width: usize) -> (&str, Vec<&str>) {
     (s, Vec::new())
 }
 
-fn split_remainder(s: &str, max_width: usize) -> Vec<&str> {
-    if s.is_empty() {
-        return Vec::new();
-    }
-
+fn split_remainder(s: &str, max_width: usize, offset: usize) -> Vec<&str> {
     let mut result = Vec::new();
     let mut current = s;
 
     while !current.is_empty() {
-        let mut width = 0;
+        let mut width = offset;
         let mut split_index = current.len();
 
         for (i, c) in current.char_indices() {
             let cw = c.width().unwrap_or(1);
+
             if width + cw > max_width {
                 split_index = i;
                 break;
             }
+
             width += cw;
         }
 

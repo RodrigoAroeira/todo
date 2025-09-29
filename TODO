@@ -1,5 +1,3 @@
-TODO: Fix line splitting for dones
-TODO: Fix line splitting indexing
 TODO: Implement scrolling
 TODO: Implement sub-todos (completes outer when all subs are complete)
 DONE: Implement insert logic
@@ -12,3 +10,5 @@ DONE: Implement status bar
 DONE: Implement help screen
 DONE: Implement <C-c> handling
 DONE: Implement arrow key movement
+DONE: Fix line splitting for dones
+DONE: Fix line splitting indexing

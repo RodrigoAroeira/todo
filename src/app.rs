@@ -6,6 +6,7 @@ use std::{
 };
 
 use crossterm::{event::KeyCode, queue, style};
+use unicode_width::UnicodeWidthStr;
 
 use crate::action::{Action, InsertAction, TabAction};
 use crate::helpers::{
@@ -242,9 +243,11 @@ impl App {
             for (idx, item) in items.iter().enumerate() {
                 let should_highlight = is_active_tab && idx == selected_idx;
                 let full_line = format!("{} {}", line_begin, item);
+                let offset = line_begin.width() + 1;
                 let (first_line, rest_lines) = split_to_fit(
                     &full_line,
                     col_mid as usize - if col_offset > 0 { 0 } else { 1 },
+                    offset,
                 );
 
                 // Start at the first line for this item
@@ -260,7 +263,7 @@ impl App {
                 }
                 current_line += 1;
 
-                let padding = " ".repeat(line_begin.len() + 1);
+                let padding = " ".repeat(line_begin.width() + 1);
                 for line in rest_lines {
                     goto(col_offset, current_line)?;
                     if should_highlight {
