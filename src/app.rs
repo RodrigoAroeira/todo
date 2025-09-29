@@ -174,35 +174,55 @@ impl App {
         println(&"=".repeat(cols as usize))?;
         println("")?;
 
-        // Sections
-        println("ACTIONS")?;
-        println("  f1       - Show this screen")?;
-        println("  i / o    - Insert item above / below")?;
-        println("  e        - Edit item under cursor")?;
-        println("  J / K    - Move item under cursor down / up")?;
-        println("  q        - Save and quit")?;
-        println("  Q        - Quit without saving")?;
-        println("")?;
+        let sections: &[(&str, &[(&str, &str)])] = &[
+            (
+                "ACTIONS",
+                &[
+                    ("f1", "Show this screen"),
+                    ("i / o", "Insert item above / below"),
+                    ("e", "Edit item under cursor"),
+                    ("J / K", "Move item under cursor down / up"),
+                    ("q", "Save and quit"),
+                    ("Q", "Quit without saving"),
+                ],
+            ),
+            (
+                "MOVEMENT",
+                &[
+                    ("j / k", "Move cursor down / up"),
+                    ("g / G", "Jump to beginning / end"),
+                    ("Tab", "Toggle Tab"),
+                    ("<- / ->", "Change to todo/done tab"),
+                ],
+            ),
+            (
+                "INSERT / EDIT MODE",
+                &[
+                    ("(type normally)", "Edit text"),
+                    ("Enter", "Save changes"),
+                    ("Esc", "Cancel"),
+                ],
+            ),
+            ("LEAVING HELP", &[("q / Q", "Quit help screen")]),
+        ];
 
-        println("MOVEMENT")?;
-        println("  j / k    - Move cursor down / up")?;
-        println("  g / G    - Jump to beginning / end")?;
-        println("  Tab      - Toggle Tab")?;
-        println("  <-/->    - Change to todo/done tab")?;
-        println("")?;
+        // Flatten all key lengths to compute global max
+        let max_key_len = sections
+            .iter()
+            .flat_map(|(_, lines)| lines.iter().map(|(k, _)| k.len()))
+            .max()
+            .unwrap_or(0);
 
-        println("INSERT / EDIT MODE")?;
-        println("  (type normally to edit text)")?;
-        println("  Enter    - Save changes")?;
-        println("  Esc      - Cancel")?;
-        println("")?;
-
-        println("LEAVING HELP")?;
-        println("  q / Q    - Quit help screen")?;
-        println("")?;
+        for (title, lines) in sections.iter() {
+            println(title)?;
+            for (key, desc) in lines.iter() {
+                let padded = format!("{:width$}", key, width = max_key_len);
+                println(&format!("  {}  - {}", padded, desc))?;
+            }
+            println("")?;
+        }
 
         println(&"=".repeat(cols as usize))?;
-
         handle.flush()?;
         Ok(())
     }
