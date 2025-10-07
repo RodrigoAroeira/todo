@@ -46,11 +46,12 @@ pub fn get_todos_dones<P>(path: P) -> Result<(Vec<String>, Vec<String>)>
 where
     P: AsRef<Path>,
 {
-    if path.as_ref().is_dir() {
-        anyhow::bail!("Provided path is a directory");
+    let path = path.as_ref();
+    if path.is_dir() {
+        anyhow::bail!("Provided path is a directory: {:?}", path.display());
     }
 
-    let Ok(file) = File::open(&path) else {
+    let Ok(file) = File::open(path) else {
         return Ok(Default::default());
     };
 

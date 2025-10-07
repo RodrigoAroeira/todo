@@ -420,11 +420,7 @@ impl App {
                 self.disable_insert_mode();
             }
             InsertAction::Char(c) => buf.push(c),
-            InsertAction::DeleteChar => {
-                if !buf.is_empty() {
-                    buf.remove(buf.len() - 1);
-                }
-            }
+            InsertAction::DeleteChar => _ = buf.pop(),
         }
     }
 
