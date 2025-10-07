@@ -437,18 +437,8 @@ impl App {
         let idx_val = *idx;
 
         let new_idx = match direction {
-            KeyCode::Down => {
-                if idx_val == vec.len() - 1 {
-                    return;
-                }
-                idx_val + 1
-            }
-            KeyCode::Up => {
-                if idx_val == 0 {
-                    return;
-                }
-                idx_val - 1
-            }
+            KeyCode::Down => (idx_val + 1).min(vec.len() - 1),
+            KeyCode::Up => idx_val.saturating_sub(1),
             _ => unreachable!(),
         };
 
