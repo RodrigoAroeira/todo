@@ -1,17 +1,16 @@
 use std::{
-    io::{self, Write},
-    mem,
+    io, mem,
     path::{Path, PathBuf},
     time::Duration,
 };
 
-use crossterm::{event::KeyCode, queue, style};
+use crossterm::event::KeyCode;
 use unicode_width::UnicodeWidthStr;
 
 use crate::action::{Action, InsertAction, TabAction};
 use crate::helpers::{
     clear_scr, get_key_event, get_todos_dones, goto, goto_begin, handle_term_size, init_scr,
-    save_to_file, split_to_fit,
+    save_to_file, split_to_fit, write_text,
 };
 use crate::{globals, screen_guard::ScreenGuard, tab::Tab};
 
@@ -118,26 +117,11 @@ impl App {
 
     fn write_header(&self, term_size: (u16, u16)) -> io::Result<()> {
         let col_mid = term_size.0 / 2;
-        let mut handle = io::stdout().lock();
         let is_tab_todo = matches!(self.curr_tab, Tab::Todos);
-        let draw_header =
-            |s: &str, should_reverse: bool, handle: &mut io::StdoutLock<'_>| -> io::Result<()> {
-                if should_reverse {
-                    queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
-                }
 
-                queue!(handle, style::Print(s))?;
-
-                if should_reverse {
-                    queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
-                }
-
-                Ok(())
-            };
-
-        draw_header("TODO", is_tab_todo, &mut handle)?;
-        queue!(handle, style::Print(" ".repeat(col_mid as usize - 4)))?;
-        draw_header("DONE\r\n", !is_tab_todo, &mut handle)?;
+        write_text("TODO", is_tab_todo)?;
+        write_text(&" ".repeat(col_mid as usize - 4), false)?;
+        write_text("DONE\r\n", !is_tab_todo)?;
         Ok(())
     }
 
@@ -151,21 +135,16 @@ impl App {
             Mode::Help => "HELP",
         };
 
-        let mut handle = io::stdout();
-        queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
-        queue!(handle, style::Print(txt))?;
-        queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
-        Ok(())
+        write_text(txt, true)
     }
 
     fn write_help_screen(&self, term_size: (u16, u16)) -> io::Result<()> {
         let (cols, _) = term_size;
-        let mut handle = io::stdout();
 
         // Helper to print a full line with newline
-        let mut println = |s: &str| -> io::Result<()> {
-            queue!(handle, style::Print(s))?;
-            queue!(handle, style::Print("\r\n"))?;
+        let println = |s: &str| -> io::Result<()> {
+            write_text(s, false)?;
+            write_text("\r\n", false)?;
             Ok(())
         };
 
@@ -224,20 +203,18 @@ impl App {
         }
 
         println(&"=".repeat(cols as usize))?;
-        handle.flush()?;
         Ok(())
     }
 
     fn write_todos_dones(&self, term_size: (u16, u16)) -> io::Result<()> {
         let (cols, _) = term_size;
         let col_mid = cols / 2;
-        let mut handle = io::stdout().lock();
 
-        let mut draw_items = |items: &[String],
-                              line_begin: &str,
-                              is_active_tab: bool,
-                              selected_idx: usize,
-                              col_offset: u16|
+        let draw_items = |items: &[String],
+                          line_begin: &str,
+                          is_active_tab: bool,
+                          selected_idx: usize,
+                          col_offset: u16|
          -> io::Result<()> {
             let mut current_line = 1;
             for (idx, item) in items.iter().enumerate() {
@@ -254,25 +231,13 @@ impl App {
 
                 // Draw first line
                 goto(col_offset, current_line)?;
-                if should_highlight {
-                    queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
-                }
-                queue!(handle, style::Print(first_line))?;
-                if should_highlight {
-                    queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
-                }
+                write_text(first_line, should_highlight)?;
                 current_line += 1;
 
                 let padding = " ".repeat(line_begin.width() + 1);
                 for line in rest_lines {
                     goto(col_offset, current_line)?;
-                    if should_highlight {
-                        queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
-                    }
-                    queue!(handle, style::Print(format!("{}{}", padding, line)))?;
-                    if should_highlight {
-                        queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
-                    }
+                    write_text(&format!("{}{}", padding, line), should_highlight)?;
                     current_line += 1;
                 }
             }
@@ -293,8 +258,6 @@ impl App {
             self.dones_idx,
             col_mid,
         )?;
-
-        handle.flush()?;
         Ok(())
     }
 

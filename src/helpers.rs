@@ -8,19 +8,19 @@ use crossterm::terminal::{
     self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
     enable_raw_mode,
 };
-use crossterm::{cursor, event, execute};
+use crossterm::{cursor, event, queue, style};
 // TODO: Replace this dependency with builtin logic
 use unicode_width::UnicodeWidthChar;
 
 use crate::globals;
 
 pub fn clear_scr() -> io::Result<()> {
-    execute!(io::stdout(), Clear(ClearType::All))?;
+    queue!(io::stdout(), Clear(ClearType::All))?;
     Ok(())
 }
 
 pub fn goto(x: u16, y: u16) -> io::Result<()> {
-    execute!(io::stdout(), cursor::MoveTo(x, y))?;
+    queue!(io::stdout(), cursor::MoveTo(x, y))?;
     Ok(())
 }
 
@@ -29,7 +29,7 @@ pub fn goto_begin() -> io::Result<()> {
 }
 
 pub fn init_scr() -> io::Result<()> {
-    execute!(io::stdout(), EnterAlternateScreen, cursor::Hide)?;
+    queue!(io::stdout(), EnterAlternateScreen, cursor::Hide)?;
     goto_begin()?;
     clear_scr()?;
     enable_raw_mode()?;
@@ -37,7 +37,7 @@ pub fn init_scr() -> io::Result<()> {
 }
 
 pub fn reset_scr() -> io::Result<()> {
-    execute!(io::stdout(), LeaveAlternateScreen, cursor::Show)?;
+    queue!(io::stdout(), LeaveAlternateScreen, cursor::Show)?;
     disable_raw_mode()?;
     Ok(())
 }
@@ -175,6 +175,22 @@ where
     write_to_file(dones, globals::DONE_PREFIX)?;
 
     println!("Saved state to {}", path.display());
+
+    Ok(())
+}
+
+pub fn write_text(txt: &str, should_highlight: bool) -> io::Result<()> {
+    let mut handle = io::stdout();
+    if should_highlight {
+        queue!(handle, style::SetAttribute(style::Attribute::Reverse))?;
+    }
+
+    queue!(handle, style::Print(txt))?;
+
+    if should_highlight {
+        queue!(handle, style::SetAttribute(style::Attribute::NoReverse))?;
+    }
+    handle.flush()?;
 
     Ok(())
 }
