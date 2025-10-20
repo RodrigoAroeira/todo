@@ -36,6 +36,7 @@ pub struct App {
     show_number: bool,
 }
 
+/// Constructor / Entry Point
 impl App {
     pub fn new<P>(file_path: P) -> anyhow::Result<Self>
     where
@@ -66,7 +67,10 @@ impl App {
         save_to_file(&self.file_path, &self.todos, &self.dones)?;
         Ok(())
     }
+}
 
+/// Main loop / Screen Drawing
+impl App {
     fn main_loop(&mut self) -> anyhow::Result<()> {
         let _guard = ScreenGuard {};
         let mut term_size = Default::default();
@@ -271,7 +275,10 @@ impl App {
         )?;
         Ok(())
     }
+}
 
+/// Actions / Mode Handling
+impl App {
     fn execute_action(&mut self, action: Action) -> anyhow::Result<()> {
         match action {
             Action::Enter => self.handle_enter_press(),
@@ -340,6 +347,57 @@ impl App {
         target_vec.remove(*idx);
     }
 
+    fn handle_move_item(&mut self, direction: KeyCode) {
+        let (vec, idx) = match self.curr_tab {
+            Tab::Todos => (&mut self.todos, &mut self.todos_idx),
+            Tab::Dones => (&mut self.dones, &mut self.dones_idx),
+        };
+
+        if vec.is_empty() {
+            return;
+        }
+
+        let idx_val = *idx;
+
+        let new_idx = match direction {
+            KeyCode::Down => (idx_val + 1).min(vec.len() - 1),
+            KeyCode::Up => idx_val.saturating_sub(1),
+            _ => unreachable!(),
+        };
+
+        vec.swap(idx_val, new_idx);
+        *idx = new_idx;
+    }
+
+    fn handle_help_mode(&mut self, action: Action) {
+        match action {
+            Action::SaveQuit | Action::NoSaveQuit => self.mode = Mode::Normal,
+            _ => {}
+        }
+    }
+
+    fn handle_insert_mode(&mut self, code: InsertAction) {
+        let buf = match self.curr_tab {
+            Tab::Todos => self.todos.get_mut(self.todos_idx).unwrap(),
+            Tab::Dones => self.dones.get_mut(self.dones_idx).unwrap(),
+        };
+
+        match code {
+            InsertAction::Enter => self.disable_insert_mode(),
+            // Cancel operation and not save
+            InsertAction::Cancel => {
+                match mem::replace(&mut self.mode, Mode::Normal) {
+                    Mode::Insert(InsertMode::Edit(snap)) => *buf = snap,
+                    Mode::Insert(InsertMode::New) => self.handle_delete(),
+                    _ => unreachable!(),
+                };
+                self.disable_insert_mode();
+            }
+            InsertAction::Char(c) => buf.push(c),
+            InsertAction::DeleteChar => _ = buf.pop(),
+        }
+    }
+
     fn start_insert_mode(&mut self, direction: KeyCode) {
         self.mode = Mode::Insert(InsertMode::New);
 
@@ -369,56 +427,15 @@ impl App {
     fn disable_insert_mode(&mut self) {
         self.mode = Mode::Normal;
     }
+}
 
+/// Utilities / Internal Helpers
+impl App {
     fn get_current_buffer(&self) -> Option<&String> {
         match self.curr_tab {
             Tab::Todos => self.todos.get(self.todos_idx),
             Tab::Dones => self.dones.get(self.dones_idx),
         }
-    }
-
-    fn handle_insert_mode(&mut self, code: InsertAction) {
-        let buf = match self.curr_tab {
-            Tab::Todos => self.todos.get_mut(self.todos_idx).unwrap(),
-            Tab::Dones => self.dones.get_mut(self.dones_idx).unwrap(),
-        };
-
-        match code {
-            InsertAction::Enter => self.disable_insert_mode(),
-            // Cancel operation and not save
-            InsertAction::Cancel => {
-                match mem::replace(&mut self.mode, Mode::Normal) {
-                    Mode::Insert(InsertMode::Edit(snap)) => *buf = snap,
-                    Mode::Insert(InsertMode::New) => self.handle_delete(),
-                    _ => unreachable!(),
-                };
-                self.disable_insert_mode();
-            }
-            InsertAction::Char(c) => buf.push(c),
-            InsertAction::DeleteChar => _ = buf.pop(),
-        }
-    }
-
-    fn handle_move_item(&mut self, direction: KeyCode) {
-        let (vec, idx) = match self.curr_tab {
-            Tab::Todos => (&mut self.todos, &mut self.todos_idx),
-            Tab::Dones => (&mut self.dones, &mut self.dones_idx),
-        };
-
-        if vec.is_empty() {
-            return;
-        }
-
-        let idx_val = *idx;
-
-        let new_idx = match direction {
-            KeyCode::Down => (idx_val + 1).min(vec.len() - 1),
-            KeyCode::Up => idx_val.saturating_sub(1),
-            _ => unreachable!(),
-        };
-
-        vec.swap(idx_val, new_idx);
-        *idx = new_idx;
     }
 
     fn goto_list_pos(&mut self, pos: usize) {
@@ -429,13 +446,6 @@ impl App {
 
         // No need for bound checking due to clamping
         *idx = pos;
-    }
-
-    fn handle_help_mode(&mut self, action: Action) {
-        match action {
-            Action::SaveQuit | Action::NoSaveQuit => self.mode = Mode::Normal,
-            _ => {}
-        }
     }
 
     fn clamp_indexes(&mut self) {
