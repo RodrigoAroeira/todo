@@ -19,6 +19,7 @@ pub enum Action {
     SaveQuit,
     NoSaveQuit,
     ShowHelp,
+    ShowNumber,
 }
 
 impl TryFrom<KeyEvent> for Action {
@@ -40,6 +41,7 @@ impl TryFrom<KeyEvent> for Action {
             Char('h') => Self::SwitchTab(TA::Left),
             Right if !m.contains(M::SHIFT) => Self::SwitchTab(TA::Right),
             Left if !m.contains(M::SHIFT) => Self::SwitchTab(TA::Left),
+            Char('n') => Self::ShowNumber,
 
             // ── Insert / Edit ───────────────────────────────
             Char('i') => Self::Insert(Up),

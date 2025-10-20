@@ -33,6 +33,7 @@ pub struct App {
     dones_idx: usize,
     curr_tab: Tab,
     mode: Mode,
+    show_number: bool,
 }
 
 impl App {
@@ -49,6 +50,7 @@ impl App {
             dones_idx: 0,
             curr_tab: Tab::Todos,
             mode: Mode::Normal,
+            show_number: false,
         };
         Ok(s)
     }
@@ -219,7 +221,16 @@ impl App {
             let mut current_line = 1;
             for (idx, item) in items.iter().enumerate() {
                 let should_highlight = is_active_tab && idx == selected_idx;
-                let full_line = format!("{} {}", line_begin, item);
+
+                let num_width = items.len().to_string().len(); // width of the largest number
+
+                let line_label = if self.show_number {
+                    format!("{:>width$}.", current_line, width = num_width)
+                } else {
+                    String::from(line_begin)
+                };
+
+                let full_line = format!("{} {}", line_label, item);
                 let offset = line_begin.width() + 1;
                 let (first_line, rest_lines) = split_to_fit(
                     &full_line,
@@ -279,6 +290,7 @@ impl App {
             Action::SaveQuit => anyhow::bail!(globals::BREAK),
             Action::NoSaveQuit => anyhow::bail!(globals::NO_SAVE),
             Action::ShowHelp => self.mode = Mode::Help,
+            Action::ShowNumber => self.show_number = !self.show_number,
         }
 
         Ok(())
