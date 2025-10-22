@@ -229,7 +229,7 @@ impl App {
                 let num_width = items.len().to_string().len(); // width of the largest number
 
                 let line_label = if self.show_number {
-                    format!("{:>width$}.", current_line, width = num_width)
+                    format!("{:>width$}.", idx + 1, width = num_width)
                 } else {
                     String::from(line_begin)
                 };
